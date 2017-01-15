@@ -1,4 +1,3 @@
-//REST API tutorial
 //Base Setup
 //Call required packages
 var express = require('express'); //call express
