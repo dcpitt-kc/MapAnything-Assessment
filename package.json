@@ -1,0 +1,15 @@
+{
+  "name": "mapanything-assessment",
+  "version": "1.0.0",
+  "description": "Node.js Technical Assessment for MapAnything",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "David Pitt",
+  "license": "ISC",
+  "dependencies": {
+    "@google/maps": "^0.3.1",
+    "express": "^4.14.0"
+  }
+}
