@@ -1,9 +1,15 @@
 //Base Setup
 //Call required packages
 var express = require('express'); //call express
+var maps = require('@google/maps'); //call Google maps client
+
+
 var app = express(); //define app using express
-var googleMapsClient = require('@google/maps').createClient({
-	  key: 'use google api key here'
+
+//create Google maps client
+var apiKey = process.env.GOOGLE_KEY
+var googleMapsClient = maps.createClient({
+	  key: apiKey
 	});
 
 var port = process.env.PORT || 3000 //set port
