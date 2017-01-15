@@ -3,7 +3,6 @@
 var express = require('express'); //call express
 var maps = require('@google/maps'); //call Google maps client
 
-
 var app = express(); //define app using express
 
 //create Google maps client
