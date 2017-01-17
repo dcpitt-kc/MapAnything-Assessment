@@ -1,15 +1,12 @@
 //Base Setup
 //Call required packages
 var express = require('express'); //call express
-var maps = require('@google/maps'); //call Google maps client
+var request = require('request'); //call request
 
 var app = express(); //define app using express
 
-//create Google maps client
-var apiKey = process.env.GOOGLE_KEY
-var googleMapsClient = maps.createClient({
-	  key: apiKey
-	});
+//get Google Api Key
+var apiKey = process.env.GOOGLE_KEY;
 
 var port = process.env.PORT || 3000 //set port
 
@@ -33,24 +30,32 @@ router.route('/geocode')
 
 //geocode the address
 .get(function(req, res) {
-	googleMapsClient.geocode({
-		address: req.query.address
-	}, function(err, response) {
-		if (err) {
-			res.send(err);
-		}
-		else if (response.status == 200){
-			if (response.json.results.length > 0) { //check if any results were found
-				res.json(response.json.results[0]);
+	//if no address parameter, don't send query
+	if (!req.query.address) {
+		res.json({message: "400 Invalid request. Invalid 'address' parameter."})
+	}
+	else {
+		//send query with request module
+		var reqStr = 'https://maps.googleapis.com/maps/api/geocode/json?address=' + req.query.address + '&key=' + apiKey;
+		request.get(reqStr, function (error, response, body) {
+			if (error) {
+				res.send(error);
 			}
+			else if (response.statusCode == 200) {
+				//check if any results were found; if not, display "no content" message
+				if (JSON.parse(body).results.length > 0) {
+					res.json(JSON.parse(body));
+				}
+				else {
+					res.json({message: '204: No content found for that address'});
+				}
+		    }
 			else {
-				res.json({message: '204: No content found for that address'});
+				//catch any errors that were not caught by if (error)
+				res.json(response.statusCode + ' ' + JSON.parse(body).error_message);
 			}
-		}
-		else {
-			res.json(response.status + ' ' + response.json.error_message); //if an error is received, display status code and error message
-		}
-	});
+		});
+	}
 });
 
 //routes that end in /timezone (requests to Timezone service)
@@ -59,47 +64,55 @@ router.route('/timezone')
 //note that this works even if no timestamp parameter is provided; if no timestamp provided, defaults to current time
 //geocode address to get location
 .get(function(req, res) {
-	googleMapsClient.geocode({
-		address: req.query.address
-	}, function(err, response) {
-		if (err) {
-			res.send(err);
-		}
-		else if (response.status == 200) {
-			if (!response.json.results.length > 0) { //check if any results were found
-				res.json({message: '204: No content found for that address'});
+	//if no address or timestamp parameter, don't send query
+	if (!req.query.address) {
+		res.json({message: "400 Invalid request. Invalid 'address' parameter."})
+	}
+	else if (!req.query.timestamp) {
+		res.json({message: "400 Invalid request. Invalid 'timestamp' parameter."})
+	}
+	else {
+		//send Geocode query
+		var reqStr = 'https://maps.googleapis.com/maps/api/geocode/json?address=' + req.query.address + '&key=' + apiKey;
+		request.get(reqStr, function (error, response, body) {
+			if (error) {
+				res.send(error);
 			}
-			else {
-				//use location in timezone request
-				var loc = response.json.results[0].geometry.location;
-				googleMapsClient.timezone({
-					location: loc,
-					timestamp: req.query.timestamp
-				}, function(err, response) {
-					if (err) {
-						res.send(err);
-					}
-					else if (response.status == 200) {
-						//having timestamp= with nothing after it gets a 200 status code from the request, but only returns {"status": "INVALID_REQUEST"}; manually sets result to the same as e.g. timestamp=a
-						if (response.json.status == "INVALID_REQUEST") {
-							res.json("400 Invalid request. Invalid 'timestamp' parameter.");
+			else if (response.statusCode == 200) {
+				//check if any results were found; if not, display "no content" message
+				if (JSON.parse(body).results.length > 0) {
+					//retrieve location information from Geocode call
+					var loc = JSON.parse(body).results[0].geometry.location;
+					
+					//send Timezone query
+					var reqStr = 'https://maps.googleapis.com/maps/api/timezone/json?location=' + loc.lat + ',' + loc.lng + '&timestamp=' + req.query.timestamp + '&key=' + apiKey;
+					request.get(reqStr, function (error, response, body) {
+						if (error) {
+							res.send(error);
 						}
+						else if (response.statusCode == 200) {
+							//Timezone does not have results array; no need to check if results is empty
+							res.json(JSON.parse(body));
+					    }
 						else {
-							res.json(response.json);
+							//catch any errors that were not caught by if (error)
+							//note that Timezone uses errorMessage instead of Geocode's error_message
+							res.json(response.statusCode + ' ' + JSON.parse(body).errorMessage);
 						}
-					}
-					else {
-						res.json(response.status + ' ' + response.json.errorMessage); //if an error is received, display status code and error message
-					}
-				});
+					});
+					
+				}
+				else {
+					res.json({message: '204: No content found for that address'});
+				}
+		    }
+			else {
+				//catch any errors that were not caught by if (error)
+				res.json(response.statusCode + ' ' + JSON.parse(body).error_message);
 			}
-		}
-		else {
-			res.json(response.status + ' ' + response.json.error_message); //if an error is received, display status code and error message
-		}
-	});
+		});
+	}
 });
-
 
 //Register the routes
 //all routes will be prefixed with /api
